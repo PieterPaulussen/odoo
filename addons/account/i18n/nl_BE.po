@@ -5466,7 +5466,7 @@ msgstr ""
 #. module: account
 #: code:addons/account/models/account_invoice.py:769
 #, python-format
-msgid "Invoice must be in draft state in order to validate it."
+msgid "Invoice must be in draft or approved state in order to validate it."
 msgstr ""
 
 #. module: account

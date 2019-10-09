@@ -5795,8 +5795,8 @@ msgstr ""
 #. module: account
 #: code:addons/account/models/account_invoice.py:893
 #, python-format
-msgid "Invoice must be in draft state in order to validate it."
-msgstr "Factuur moet in de concept fase staan om deze te kunnen bevestigen."
+msgid "Invoice must be in draft or approved state in order to validate it."
+msgstr "Factuur moet in de concept of goedgekeurd fase staan om deze te kunnen bevestigen."
 
 #. module: account
 #: code:addons/account/models/account_invoice.py:920
