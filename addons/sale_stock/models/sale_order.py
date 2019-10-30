@@ -199,13 +199,17 @@ class SaleOrderLine(models.Model):
         lines.filtered(lambda line: line.state == 'sale')._action_launch_stock_rule()
         return lines
 
+    def get_launch_stock_rule_states(self):
+        return ['sale']
+
     @api.multi
     def write(self, values):
         lines = self.env['sale.order.line']
         if 'product_uom_qty' in values:
             precision = self.env['decimal.precision'].precision_get('Product Unit of Measure')
+            states = self.get_launch_stock_rule_states()
             lines = self.filtered(
-                lambda r: r.state == 'sale' and not r.is_expense and float_compare(r.product_uom_qty, values['product_uom_qty'], precision_digits=precision) == -1)
+                lambda r: r.state in states and not r.is_expense and float_compare(r.product_uom_qty, values['product_uom_qty'], precision_digits=precision) == -1)
         previous_product_uom_qty = {line.id: line.product_uom_qty for line in lines}
         res = super(SaleOrderLine, self).write(values)
         if lines:
@@ -292,7 +296,8 @@ class SaleOrderLine(models.Model):
         else:
             product_uom_qty_origin = 0
 
-        if self.state == 'sale' and self.product_id.type in ['product', 'consu'] and self.product_uom_qty < product_uom_qty_origin:
+        states = self.get_launch_stock_rule_states()
+        if self.state in states and self.product_id.type in ['product', 'consu'] and self.product_uom_qty < product_uom_qty_origin:
             # Do not display this warning if the new quantity is below the delivered
             # one; the `write` will raise an `UserError` anyway.
             if self.product_uom_qty < self.qty_delivered:
@@ -312,8 +317,7 @@ class SaleOrderLine(models.Model):
         """
         values = super(SaleOrderLine, self)._prepare_procurement_values(group_id)
         self.ensure_one()
-        date_planned = self.order_id.confirmation_date\
-            + timedelta(days=self.customer_lead or 0.0) - timedelta(days=self.order_id.company_id.security_lead)
+        date_planned = self._get_planned_date()
         values.update({
             'company_id': self.order_id.company_id,
             'group_id': group_id,
@@ -329,6 +333,11 @@ class SaleOrderLine(models.Model):
                 'date_planned': fields.Datetime.to_string(date_planned),
             })
         return values
+
+    def _get_planned_date(self):
+        return self.order_id.confirmation_date \
+               + timedelta(days=self.customer_lead or 0.0) - timedelta(
+            days=self.order_id.company_id.security_lead)
 
     def _get_qty_procurement(self):
         self.ensure_one()
@@ -350,7 +359,8 @@ class SaleOrderLine(models.Model):
         precision = self.env['decimal.precision'].precision_get('Product Unit of Measure')
         errors = []
         for line in self:
-            if line.state != 'sale' or not line.product_id.type in ('consu','product'):
+            states = self.get_launch_stock_rule_states()
+            if line.state not in states or not line.product_id.type in ('consu','product'):
                 continue
             qty = line._get_qty_procurement()
             if float_compare(qty, line.product_uom_qty, precision_digits=precision) >= 0:
